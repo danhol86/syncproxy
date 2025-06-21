@@ -49,7 +49,7 @@ const maxSyncRetryInterval = 120 * time.Second
 
 func (target *SyncTarget) sync(ctx context.Context) error {
 	var filterID string
-	if resp, err := target.client.CreateFilter(syncFilter); err != nil {
+	if resp, err := target.client.CreateFilter(ctx, syncFilter); err != nil {
 		return fmt.Errorf("failed to create filter: %w", err)
 	} else {
 		filterID = resp.FilterID
@@ -61,7 +61,7 @@ func (target *SyncTarget) sync(ctx context.Context) error {
 	retryIn := initialSyncRetrySleep
 
 	for {
-		resp, err := target.client.SyncRequest(30000, target.NextBatch, filterID, false, event.PresenceOffline, ctx)
+		resp, err := target.client.SyncRequest(ctx, 30000, target.NextBatch, filterID, false, event.PresenceOffline)
 		if err != nil {
 			if errors.Is(err, mautrix.MUnknownToken) {
 				return err
@@ -118,8 +118,10 @@ func syncToTransaction(resp *mautrix.RespSync, userID id.UserID, deviceID id.Dev
 			txn.MSC3202DeviceLists = txn.DeviceLists
 		}
 		if sendOTKs {
-			txn.DeviceOTKCount = map[id.UserID]mautrix.OTKCount{
-				userID: resp.DeviceOTKCount,
+			txn.DeviceOTKCount = map[id.UserID]map[id.DeviceID]mautrix.OTKCount{
+				userID: {
+					deviceID: resp.DeviceOTKCount,
+				},
 			}
 			txn.MSC3202DeviceOTKCount = txn.DeviceOTKCount
 		}
